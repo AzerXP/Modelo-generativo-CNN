@@ -112,3 +112,54 @@ Implementar curriculum learning para robustez en inferencia.
 Exportar resultados en formatos adicionales (Markdown, HTML).
 
 Integrar modelos de lenguaje más avanzados (LLaMA, GPT-NeoX).
+
+
+📌 Generador de Dataset UML (Imagen + JSON)
+Este proyecto permite crear automáticamente un dataset de diagramas UML de casos de uso, generando tanto la imagen del diagrama (en formato .png) como su representación semántica en JSON. El dataset se divide en train / val / test para facilitar el entrenamiento de modelos de visión y NLP.
+
+🚀 Características principales
+Generación automática de diagramas UML de casos de uso con PlantUML.
+
+Exportación simultánea de:
+
+Imagen .png del diagrama.
+
+Archivo .json con actores, casos de uso y relaciones.
+
+Inclusión de relaciones principales, include y extend.
+
+División del dataset en train / val / test usando scikit-learn.
+
+Control de peticiones al servidor PlantUML con time.sleep para evitar saturación.
+
+📂 Estructura del proyecto
+Code
+├── dataset/
+│   ├── train/
+│   │   ├── diagrama_0001.png
+│   │   ├── diagrama_0001.json
+│   │   └── ...
+│   ├── val/
+│   ├── test/
+├── generar_dataset.py
+└── README.md
+⚙️ Instalación
+Clona el repositorio:
+
+bash
+git clone https://github.com/tuusuario/generador-dataset-uml.git
+cd generador-dataset-uml
+Instala dependencias:
+
+bash
+pip install requests scikit-learn
+🏋️‍♂️ Uso
+Ejecuta el script principal:
+
+bash
+python generar_dataset.py
+Esto generará:
+
+100 diagramas UML (pares .png + .json).
+
+División automática en carpetas train, val, test
