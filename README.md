@@ -1,165 +1,83 @@
-# Modelo generativo CNN
-Este proyecto implementa un pipeline de visión por computadora + NLP para convertir imágenes de diagramas UML en estructuras JSON semánticas y narrativas en lenguaje natural. Combina un encoder CNN para imágenes y un decoder Transformer entrenado con un tokenizer GPT-2 byte-level.
+# Modelo OpenCV-OCR
 
-🚀 Características principales
-Tokenización GPT-2 byte-level con tokens especiales (<start>, <end>, <unk>, <pad>).
+Este repositorio contiene un script para la **detección de actores y casos de uso en diagramas de casos de uso del sistema** y extracción de texto asociado mediante **OCR (EasyOCR)**. El pipeline del primer script permite identificar la posición de cada actor, verificar la existencia de la cabeza, definir regiones de interés (ROI) hacia arriba y hacia abajo, y finalmente extraer el texto contenido debajo del actor.
 
-Dataset personalizado que enlaza imágenes .png con anotaciones .json.
+---
 
-Modelo híbrido:
+## Archivos principales
 
-Encoder CNN para extracción de características visuales.
+| Archivo                | Descripción                                                                                                                                                |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `script_definitivo.py` | Script principal para la detección de actores y extracción de texto. Implementa todo el pipeline de procesamiento de imágenes, detección de cabezas y OCR. |
 
-Decoder Transformer para generación de secuencias JSON.
+---
 
-Entrenamiento completo con PyTorch (optimización con Adam, pérdida CrossEntropy).
+## Detección de actores
 
-Inferencia paso a paso con sampling controlado (temperature, top-k).
+El script sigue un flujo de trabajo estructurado en varias funciones, con estrategias de procesamiento y detección adaptadas a diagramas de Draw.io:
 
-Post-procesamiento heurístico para limpiar texto y reconstruir JSON válido.
+### 1. Inicialización (`__init__`)
 
-Narrativa automática que describe el sistema, actores, casos de uso y relaciones.
+* Carga la imagen desde disco.
+* Maneja imágenes con transparencia (canal alfa), rellenando el fondo con blanco si es necesario.
+* Obtiene dimensiones de la imagen para calcular las ROIs.
 
-📂 Estructura del proyecto
-Code
-├── dataset/
-│   ├── diagrama_0001.png
-│   ├── diagrama_0001.json
-│   └── ...
-├── diagram_image2json.pth   # Modelo entrenado
-├── tokenizer/               # Tokenizer guardado
-├── import os.txt            # Script principal
-└── README.md
-⚙️ Instalación
-Clona el repositorio:
+### 2. Preprocesamiento (`preprocess`)
 
-bash
-git clone https://github.com/tuusuario/image2json.git
-cd image2json
-Instala dependencias:
+* Convierte la imagen a escala de grises.
+* Invierte colores si el fondo es claro para facilitar la detección.
+* Aplica un umbral binario para resaltar las figuras de los actores.
 
-bash
-pip install torch torchvision transformers pillow
-(Opcional) Instala soporte GPU con CUDA para PyTorch siguiendo la guía oficial: PyTorch Get Started.
+### 3. Detección de actores por plantilla (`find_actors_by_template`)
 
-🏋️‍♂️ Entrenamiento
-Ejecuta el script principal para entrenar el modelo:
+* Genera plantillas de actores (cabeza, cuerpo, brazos) de varios tamaños.
+* Aplica **template matching** (`cv2.matchTemplate`) para localizar coincidencias en la imagen.
+* Filtra duplicados cercanos para evitar contar el mismo actor varias veces.
 
-bash
-python import\ os.txt
-Entrena durante 100 épocas.
+### 4. Verificación de cabeza (`verify_head_circle`)
 
-Guarda el modelo en diagram_image2json.pth.
+* Define una ROI por encima del actor donde debería encontrarse la cabeza.
+* Aplica **HoughCircles** para detectar círculos que representen la cabeza.
+* Filtra círculos no alineados geométricamente con la posición del actor.
+* Permite ajustar el **ancho y alto de la ROI** para mayor precisión.
+* Devuelve la posición de la cabeza si existe.
 
-Guarda el tokenizer en ./tokenizer.
+### 5. Extracción de texto debajo del actor (`extract_text_below`)
 
-🔎 Inferencia
-Ejemplo de uso:
+* Define una ROI hacia abajo del actor (ancho fijo, altura configurable).
+* Utiliza **EasyOCR** para reconocer texto dentro de la ROI.
+* Devuelve el texto detectado junto con la posición del ROI.
+* Ideal para diagramas de Draw.io donde el texto es legible y bien definido.
 
-python
-from import_os import infer_image, flujo_a_texto
-import torch, json
+### 6. Pipeline principal (`detect_actors`)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-img_test = "dataset/diagrama_0001.png"
+* Combina detección por plantilla y verificación de cabeza.
+* Genera un listado de actores validados.
+* Para cada actor, extrae el texto debajo usando OCR.
+* Produce resultados finales y dibuja una imagen de salida con:
 
-flujo = infer_image(img_test, model, tokenizer, device)
-print(json.dumps(flujo, indent=2, ensure_ascii=False))
-print(flujo_a_texto(flujo))
-Salida esperada:
+  * Actor detectado
+  * Cabeza detectada
+  * ROI superior e inferior
+  * Texto detectado
 
-json
-{
-  "sistema": "Sistema GestiónClientes",
-  "actores": ["Cliente", "Administrador"],
-  "casos_uso": ["Registrar usuario", "Consultar datos"],
-  "relaciones": [
-    {"actor": "Cliente", "caso_uso": "Registrar usuario"}
-  ]
-}
-Narrativa:
+### 7. Salida y visualización (`draw_results`)
 
-Code
-El sistema es Sistema GestiónClientes. 
-Los actores principales son: Cliente, Administrador. 
-Los casos de uso incluyen: Registrar usuario, Consultar datos. 
-El actor Cliente participa en el caso de uso Registrar usuario.
-📖 Aplicaciones
-Interpretación automática de diagramas UML.
+* Dibuja círculos sobre actores y cabezas detectadas.
+* Dibuja rectángulos para ROIs superiores e inferiores.
+* Inserta etiquetas de texto indicando "HEAD" o "NO HEAD" y el texto detectado debajo.
+* Guarda la imagen final como `actors_debug_output.png`.
 
-Generación de documentación técnica a partir de imágenes.
+---
 
-Integración en pipelines de FastAPI para endpoints de OCR semántico.
+### Estrategias y Consideraciones
 
-Base para proyectos de ingeniería de software asistida por IA.
+* **ROI adaptables:** permite ajustar alto y ancho para mejorar precisión en distintos diagramas.
+* **Filtro de duplicados:** evita detectar múltiples veces el mismo actor en áreas cercanas.
+* **OCR confiable:** EasyOCR se configura con los idiomas `['en', 'es']` y no requiere GPU.
+* **Pipeline modular:** cada función tiene responsabilidades claras (detección, verificación, OCR, dibujo), facilitando mantenimiento y extensión.
+* **Debug opcional:** permite guardar imágenes intermedias de ROIs y detección de círculos para depuración.
 
-🛠️ Tecnologías utilizadas
-Python 3.10+
+---
 
-PyTorch (CNN + Transformer)
-
-Transformers (Hugging Face)
-
-PIL / torchvision para procesamiento de imágenes
-
-Regex + heurísticas para limpieza y reconstrucción de JSON
-
-📌 Próximos pasos
-Mejorar dataset con más variaciones de diagramas UML.
-
-Implementar curriculum learning para robustez en inferencia.
-
-Exportar resultados en formatos adicionales (Markdown, HTML).
-
-Integrar modelos de lenguaje más avanzados (LLaMA, GPT-NeoX).
-
-
-📌 Generador de Dataset UML (Imagen + JSON)
-Este proyecto permite crear automáticamente un dataset de diagramas UML de casos de uso, generando tanto la imagen del diagrama (en formato .png) como su representación semántica en JSON. El dataset se divide en train / val / test para facilitar el entrenamiento de modelos de visión y NLP.
-
-🚀 Características principales
-Generación automática de diagramas UML de casos de uso con PlantUML.
-
-Exportación simultánea de:
-
-Imagen .png del diagrama.
-
-Archivo .json con actores, casos de uso y relaciones.
-
-Inclusión de relaciones principales, include y extend.
-
-División del dataset en train / val / test usando scikit-learn.
-
-Control de peticiones al servidor PlantUML con time.sleep para evitar saturación.
-
-📂 Estructura del proyecto
-Code
-├── dataset/
-│   ├── train/
-│   │   ├── diagrama_0001.png
-│   │   ├── diagrama_0001.json
-│   │   └── ...
-│   ├── val/
-│   ├── test/
-├── generar_dataset.py
-└── README.md
-⚙️ Instalación
-Clona el repositorio:
-
-bash
-git clone https://github.com/tuusuario/generador-dataset-uml.git
-cd generador-dataset-uml
-Instala dependencias:
-
-bash
-pip install requests scikit-learn
-🏋️‍♂️ Uso
-Ejecuta el script principal:
-
-bash
-python generar_dataset.py
-Esto generará:
-
-100 diagramas UML (pares .png + .json).
-
-División automática en carpetas train, val, test
+¿Querés que haga eso también?
