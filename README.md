@@ -79,5 +79,3 @@ El script sigue un flujo de trabajo estructurado en varias funciones, con estrat
 * **Debug opcional:** permite guardar imágenes intermedias de ROIs y detección de círculos para depuración.
 
 ---
-
-¿Querés que haga eso también?
